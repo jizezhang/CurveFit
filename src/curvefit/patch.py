@@ -148,10 +148,10 @@ class ModelRunner:
         """Create draws from given models.
 
         Args:
+            t (np.ndarray):
+                Time for the prediction.
             models (dict{str, CurveModel}):
                 Curve fit models.
-            params (list{str}):
-                Parameter names that we want samples for.
             covs (np.ndarray):
                 Covariates for the group want have the draws.
             predict_fun (callable):

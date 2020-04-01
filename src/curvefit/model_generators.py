@@ -12,6 +12,7 @@ from curvefit.model import CurveModel
 from curvefit.forecaster import Forecaster
 from curvefit.pv import PVModel
 from curvefit.utils import convex_combination, model_average
+from .patch import ModelRunner
 
 
 class ModelPipeline:
@@ -324,8 +325,8 @@ class TightLooseBetaPModel(ModelPipeline):
         self.basic_model_dict.update(**generator_kwargs)
         self.basic_model_dict.update({'col_obs_se': self.col_obs_se})
 
-        self.beta_model_kwargs = self.basic_model_dict
-        self.p_model_kwargs = self.basic_model_dict
+        self.beta_model_kwargs = self.basic_model_dict.copy()
+        self.p_model_kwargs = self.basic_model_dict.copy()
 
         if beta_model_extras is not None:
             self.beta_model_kwargs.update(beta_model_extras)
@@ -412,3 +413,56 @@ class TightLooseBetaPModel(ModelPipeline):
         else:
             raise RuntimeError
         return averaged_predictions
+
+    def create_draws_for_new_group(self, obs_threshold, t, covs, predict_fun,
+                                   alpha_times_beta=None,
+                                   sample_size=100,
+                                   slope_at=14):
+        """Create draws for new group.
+
+        Args:
+            obs_threshold (int, float):
+                Observation threshold for the rich model.
+            t (np.ndarray):
+                Time for the prediction.
+            covs (np.ndarray):
+                Covariates for the group want have the draws.
+            predict_fun (callable):
+                Prediction function.
+            alpha_times_beta (float | None, optional):
+                If alpha_times_beta is `None` use the empirical distribution
+                for alpha samples, otherwise use the relation from beta to get
+                alpha samples.
+            sample_size (int, optional):
+                Number of samples
+            slope_at (int | float, optional):
+                If return slopes samples, this is where to evaluation the slope.
+
+        Returns:
+            np.ndarray:
+                Draws, with shape (sample_size, t.size).
+        """
+        runner = ModelRunner(
+            self.all_data,
+            self.col_t,
+            self.col_obs,
+            self.beta_model_kwargs['col_covs'],
+            self.col_group,
+            self.beta_model_kwargs['link_fun'],
+            self.beta_model_kwargs['var_link_fun'],
+            self.fun,
+            col_obs_se=None
+        )
+
+        rich_model_fit_dict = self.tight_beta_fit_dict
+        rich_model_fit_dict.update({
+            're_bounds': [[0.0, 0.0]]*3
+        })
+        models = runner.run_rich_models(obs_threshold,
+                               **rich_model_fit_dict)
+
+        return runner.create_draws(
+            t, models, covs, predict_fun,
+            alpha_times_beta=alpha_times_beta,
+            sample_size=sample_size,
+            slope_at=slope_at)
