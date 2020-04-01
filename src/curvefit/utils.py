@@ -1,5 +1,7 @@
 import numpy as np
 import pandas as pd
+from scipy.optimize import bisect
+from .functions import *
 from scipy.stats import median_absolute_deviation
 
 
@@ -341,7 +343,7 @@ def data_translator(data, input_space, output_space,
     else:
         if 'log' in input_space:
             data = np.exp(data)
-        output_data = data - np.insert(data[:, :-1], 0, 0.0)
+        output_data = data - np.insert(data[:, :-1], 0, 0.0, axis=1)
         if 'log' in output_space:
             output_data = np.log(output_data)
 
@@ -350,6 +352,72 @@ def data_translator(data, input_space, output_space,
         output_data = output_data.ravel()
 
     return output_data
+
+
+
+def solve_p_from_dderf(alpha, beta, slopes, slope_at=14):
+    """Compute p from alpha, beta and slopes of derf at given point.
+
+    Args:
+        alpha (np.ndarray | float):
+            Array of alpha values.
+        beta (np.ndarray | float):
+            Array of beta values.
+        slopes (np.ndarray | float):
+            Array of slopes
+        slope_at (float | int, optional):
+            Point where slope is calculated.
+
+    Returns:
+        np.ndarray | float:
+            The corresponding p value.
+    """
+    is_scalar = np.isscalar(alpha)
+
+    alpha = np.array([alpha]) if np.isscalar(alpha) else alpha
+    beta = np.array([beta]) if np.isscalar(beta) else beta
+
+    assert alpha.size == beta.size
+    assert (alpha > 0.0).all()
+
+    if np.isscalar(slopes):
+        slopes = np.repeat(slopes, alpha.size)
+
+    assert alpha.size == slopes.size
+
+    p = np.zeros(alpha.size)
+
+    for i in range(alpha.size):
+        f = lambda x: dderf(slope_at, [alpha[i], beta[i], np.exp(x)]) - \
+                      slopes[i]
+        if f(-30.0)*f(0.0) > 0.0:
+            print(alpha[i], beta[i], slopes[i], f(-30.0), f(0.0))
+        x = bisect(lambda x: dderf(slope_at, [alpha[i], beta[i], np.exp(x)]) -
+                   slopes[i], -30.0, 0.0)
+        p[i] = np.exp(x)
+
+    return p
+
+
+def sample_from_samples(samples, sample_size):
+    """Sample from given samples.
+
+    Args:
+        samples (np.ndarray):
+            Given samples, assume to be 1D array.
+        sample_size (int):
+            Number of samples want to predict.
+
+    Returns:
+        new_samples (np.ndarray):
+            Generated new samples.
+    """
+    mean = np.mean(samples)
+    std = np.std(samples)
+
+    new_samples = mean + np.random.randn(sample_size)*std
+
+    return new_samples
 
 
 def truncate_draws(t, draws, draw_space, last_day, last_obs, last_obs_space):
