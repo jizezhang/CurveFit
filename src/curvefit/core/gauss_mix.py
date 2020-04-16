@@ -6,6 +6,19 @@ from scipy.optimize import minimize
 class GaussianMixture:
     def __init__(self, df, col_t, col_obs, params, beta_stride, mixture_size,
                  col_obs_se=None):
+        """
+        Fits a Gaussian Mixture model.
+
+        Args:
+            df:
+            col_t:
+            col_obs:
+            params:
+            beta_stride:
+            mixture_size:
+            col_obs_se:
+        """
+
         self.df = df.copy()
         self.col_t = col_t
         self.col_obs = col_obs
@@ -29,6 +42,7 @@ class GaussianMixture:
                                                             self.beta_stride,
                                                             self.mixture_size)
         self.weights = None
+        self.result = None
 
     def objective(self, w):
         residual = (self.obs - self.mat.dot(w))/self.obs_se

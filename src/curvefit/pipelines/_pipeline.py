@@ -50,7 +50,7 @@ class ModelPipeline:
         # If we're doing predictive validity in log space, we want absolute residuals, which
         # corresponds to theta = 0. If we're doing predictive validity in linear space, we want
         # relative residuals, which corresponds to theta = 1.
-        if self.predict_space.__name__.startswith('log'):
+        if self.predict_space.__name__.startswith('ln'):
             self.theta = 0
         else:
             self.theta = 1
@@ -61,7 +61,7 @@ class ModelPipeline:
         #
         # This flag will de-bias the draws
         # mean in linear space to match exactly the exp mean in log space.
-        self.de_bias_draws = self.predict_space.__name__.startswith('log')
+        self.de_bias_draws = self.predict_space.__name__.startswith('ln')
 
         if self.obs_se_func is not None:
             self.col_obs_se = 'obs_se'
@@ -185,6 +185,7 @@ class ModelPipeline:
         """
         Generate a copy of this class.
         """
+        print("Deepcopying.")
         return deepcopy(self)
 
     def fit(self, df, group=None):
@@ -314,7 +315,7 @@ class ModelPipeline:
         return self.forecaster.residual_model.smoothed.pivot('num_data', 'far_out', 'residual_std')
 
     def plot_results(self, prediction_times, sharex=True, sharey=False, draw_space=None,
-                     plot_obs=None, plot_uncertainty=True):
+                     plot_obs=None, plot_uncertainty=True, groups=None):
         """
         Plot the draws resulting from a model in any space. Does it for each group in the model.
 
@@ -332,4 +333,5 @@ class ModelPipeline:
             plot_obs = self.col_obs_compare
 
         plot_fits(generator=self, sharex=sharex, sharey=sharey, prediction_times=prediction_times,
-                  draw_space=draw_space, plot_obs=plot_obs, plot_uncertainty=plot_uncertainty)
+                  draw_space=draw_space, plot_obs=plot_obs, plot_uncertainty=plot_uncertainty,
+                  groups=groups)
