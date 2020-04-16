@@ -1,6 +1,5 @@
 import numpy as np
 import pandas as pd
-from xspline import XSpline
 from copy import deepcopy
 from collections import OrderedDict
 from curvefit.core.functions import *
@@ -709,15 +708,26 @@ def smooth_mat(mat, radius=None):
 
 
 def split_by_group(df, col_group):
-    """Split the data frame by the group definition.
-    Args:
-        df (pd.DataFrame): Provided data frame.
-        col_group (str): Column name of group definition.
-    Returns:
-        dict{str, pd.DataFrame}:
-            Dictionary with key as the group definition and value as the
-            corresponding data frame.
-    """
+    """{begin_markdown split_by_group}
+    {spell_markdown dataframe}
+    # Split the dataframe by the group definition.
+
+    ## Syntax
+    `data = split_by_group(df, col_group)`
+
+    ## df
+    Provided dataframe.
+
+    ## col_group
+    Column name in the dataframe contains group definition.
+
+    ## data
+    Dictionary with key as the group definition and value as the
+    corresponding dataframe.
+
+    ## Example
+
+    {end_markdown split_by_group}"""
     assert col_group in df
     data = {
         group: df[df[col_group] == group].reset_index(drop=True)
@@ -727,13 +737,15 @@ def split_by_group(df, col_group):
     return data
 
 
-def filter_death_rate(df, col_t, col_death_rate):
+def filter_death_rate(df, col_t, col_death_rate, remove_zero=True):
     """Filter cumulative death rate. Remove non-monotonically increasing points.
 
     Args:
         df (pd.DataFrame): Provided data frame.
         col_t (str): Column name of the independent variable.
         col_death_rate (str): Name for column that contains the death rate.
+        remove_zero(bool, optional):
+            If True, remove rows have zero daily death rate.
 
     Returns:
         pd.DataFrame: Filtered data frame.
@@ -741,26 +753,34 @@ def filter_death_rate(df, col_t, col_death_rate):
     df = df.sort_values(col_t).reset_index(drop=True)
     t = df[col_t]
     death_rate = df[col_death_rate]
-    drop_idx = [i for i in range(1, t.size)
-                if np.any(death_rate[i] <= death_rate[:i])]
+    if remove_zero:
+        drop_idx = [i for i in range(1, t.size)
+                    if np.any(death_rate[i] <= death_rate[:i])]
+    else:
+        drop_idx = [i for i in range(1, t.size)
+                    if np.any(death_rate[i] < death_rate[:i])]
     df = df.drop(drop_idx).reset_index(drop=True)
     return df
 
 
-def filter_death_rate_by_group(df, col_group, col_t, col_death_rate):
+def filter_death_rate_by_group(df, col_group, col_t, col_death_rate,
+                               remove_zero=True):
     """Filter cumulative death rate within each group.
     Args:
         df (pd.DataFrame): Provided data frame.
         col_group (str): Column name of group definition.
         col_t (str): Column name of the independent variable.
         col_death_rate (str): Name for column that contains the death rate.
+        remove_zero(bool, optional):
+            If True, remove rows have zero daily death rate.
 
     Returns:
         pd.DataFrame: Filtered data frame.
     """
     df_split = list(split_by_group(df, col_group).values())
     for i, df_sub in enumerate(df_split):
-        df_split[i] = filter_death_rate(df_sub, col_t, col_death_rate)
+        df_split[i] = filter_death_rate(df_sub, col_t, col_death_rate,
+                                        remove_zero=remove_zero)
 
     return pd.concat(df_split)
 
@@ -819,6 +839,7 @@ def create_potential_peaked_groups(df, col_group, col_t, col_death_rate,
 
 def process_input(df, col_group, col_t, col_death_rate,
                   col_covs=None,
+                  asddr_lower_threshold=1e-16,
                   return_df=True):
     """
     Trim filter and adding extra information to the data frame.
@@ -829,6 +850,9 @@ def process_input(df, col_group, col_t, col_death_rate,
         col_t (str): Column name of the independent variable.
         col_death_rate (str): Name for column that contains the death rate.
         col_covs (list{str}): Names for the covariates.
+        asddr_lower_threshold (float, optional):
+            If is 0.0, then drop all the columns with daily death 0, otherwise
+            use it as the offset when compute ln daily death.
         return_df (bool, optional):
             If True return the combined data frame, otherwise return the
             splitted dictionary.
@@ -843,6 +867,7 @@ def process_input(df, col_group, col_t, col_death_rate,
         assert all([col_cov in df for col_cov in col_covs])
     else:
         col_covs = []
+    assert asddr_lower_threshold >= 0.0
 
     # trim down the data frame
     df = df[[col_group, col_t, col_death_rate] + col_covs].reset_index(
@@ -850,16 +875,21 @@ def process_input(df, col_group, col_t, col_death_rate,
     df.sort_values([col_group, col_t], inplace=True)
     df.columns = ['location', 'days', 'ascdr'] + col_covs
 
+    remove_zero = asddr_lower_threshold == 0.0
     # check and filter and add more information
     data = split_by_group(df, col_group='location')
     for location, df_location in data.items():
         assert df_location.shape[0] == df_location['days'].unique().size
         df_location = filter_death_rate(df_location,
                                         col_t='days',
-                                        col_death_rate='ascdr')
+                                        col_death_rate='ascdr',
+                                        remove_zero=remove_zero)
         df_location['ln ascdr'] = np.log(df_location['ascdr'])
-        df_location['asddr'] = df_location['ascdr'].values - \
-            np.insert(df_location['ascdr'].values[:-1], 0, 0.0)
+        df_location['asddr'] = np.maximum(
+            df_location['ascdr'].values -
+            np.insert(df_location['ascdr'].values[:-1], 0, 0.0),
+            asddr_lower_threshold,
+        )
         df_location['ln asddr'] = np.log(df_location['asddr'])
 
         data.update({

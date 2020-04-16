@@ -13,7 +13,9 @@ class ModelPipeline:
     put that in run_init_model
     """
     def __init__(self, all_data, col_t, col_obs, col_group,
-                 col_obs_compare, all_cov_names, fun, predict_space, obs_se_func=None):
+                 col_obs_compare, all_cov_names, fun, predict_space,
+                 obs_se_func=None,
+                 col_obs_se=None):
         """
         Base class for a model pipeline. At minimum needs the following arguments for a
         model pipeline.
@@ -29,6 +31,9 @@ class ModelPipeline:
             fun: (callable) the space to fit in, one of curvefit.functions
             predict_space: (callable) the space to do predictive validity in, one of curvefit.functions
             obs_se_func: (optional) function to get observation standard error from col_t
+            col_obs_se (str, optional):
+                Column in dataframe for observation standard deviation.
+                When `obs_se_func` is not None, it will overwrite this.
 
         Attributes:
             self.pv: (curvefit.pv.PVModel) predictive validity model
@@ -67,7 +72,7 @@ class ModelPipeline:
             self.col_obs_se = 'obs_se'
             self.all_data[self.col_obs_se] = self.all_data[self.col_t].apply(self.obs_se_func)
         else:
-            self.col_obs_se = None
+            self.col_obs_se = col_obs_se
 
         # these are the attributes that can't be used to initialize a
         # CurveModel but are needed to initialize the ModelPipeline
@@ -88,7 +93,8 @@ class ModelPipeline:
 
     def run(self, n_draws, prediction_times, cv_lower_threshold,
             smoothed_radius, num_smooths, exclude_groups, exclude_below=0, cv_upper_threshold=np.inf,
-            max_last=None, exp_smoothing=None):
+            max_last=None, exp_smoothing=None,
+            last_info=None):
         """
         Runs the whole model with PV and forecasting residuals and creating draws.
 
@@ -110,6 +116,7 @@ class ModelPipeline:
                 to predict the coefficient of variation (low numbers of data points makes this unstable)
             exp_smoothing: (optional float) exponential smoothing parameter for combining time series predictions
             max_last: (optional int) number of models from previous observations to use since the maximum time
+            last_info (dict, optional)
         Returns:
         """
         assert type(n_draws) == int
@@ -149,7 +156,8 @@ class ModelPipeline:
             prediction_times=prediction_times,
             theta=self.theta,
             exp_smoothing=exp_smoothing,
-            max_last=max_last
+            max_last=max_last,
+            last_info=last_info
         )
 
     def setup_pipeline(self):
@@ -246,7 +254,8 @@ class ModelPipeline:
 
     def create_draws(self, num_draws, prediction_times,
                      theta=1, std_lower_threshold=1e-2, std_upper_threshold=np.inf,
-                     exp_smoothing=None, max_last=None):
+                     exp_smoothing=None, max_last=None,
+                     last_info=None):
         """
         Generate draws for a model pipeline, smoothing over a neighbor radius of residuals
         for far out and num data points.
@@ -260,6 +269,8 @@ class ModelPipeline:
             exp_smoothing: (optional float) amount of exponential smoothing --> higher value means more weight
                 given to the more recent models
             max_last: (optional int) number of models from previous observations to use since the maximum time
+            last_info (dict, optional):
+                Dictionary overwrite the last day and observation.
         """
         if self.pv.all_residuals is None:
             raise RuntimeError("Need to first run predictive validity with self.run_predictive_validity.")
@@ -295,7 +306,8 @@ class ModelPipeline:
                 group=group,
                 theta=theta,
                 std_floor=std_lower_threshold,
-                std_ceiling=std_upper_threshold
+                std_ceiling=std_upper_threshold,
+                last_info=last_info
             )
             if self.de_bias_draws:
                 draws = draws - draws.var(axis=0) / 2
