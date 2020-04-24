@@ -127,7 +127,8 @@ class Parameter:
 
     num_fe: int = field(init=False)
 =======
->>>>>>> updated parameter class
+    num_fe: int = field(init=False)
+>>>>>>> updated core model to work with objective_fun
     covariate: List[str] = field(init=False)
     var_link_fun: List[Callable] = field(init=False)
     fe_init: List[float] = field(init=False)
@@ -144,7 +145,8 @@ class Parameter:
 <<<<<<< HEAD
         self.num_fe = len(variables)
 =======
->>>>>>> updated parameter class
+        self.num_fe = len(variables)
+>>>>>>> updated core model to work with objective_fun
         for k, v in consolidate(Variable, variables).items():
             self.__setattr__(k, v)
 
@@ -209,10 +211,11 @@ class ParameterSet:
     param_name: List[str] = field(init=False)
     num_fe: int = field(init=False)
 =======
-    parameters: List[Parameter]
+    parameters: InitVar[List[Parameter]]
     parameter_functions: List[Tuple[Callable, List[float]]] = None
     param_name: List[str] = field(init=False)
->>>>>>> updated parameter class
+    num_fe: int = field(init=False)
+>>>>>>> updated core model to work with objective_fun
     link_fun: List[Callable] = field(init=False)
     covariate: List[List[str]] = field(init=False)
     var_link_fun: List[List[Callable]] = field(init=False)
@@ -226,8 +229,8 @@ class ParameterSet:
 <<<<<<< HEAD
     def __post_init__(self, parameters):
 =======
-    def __post_init__(self):
->>>>>>> updated parameter class
+    def __post_init__(self, parameters):
+>>>>>>> updated core model to work with objective_fun
         if self.parameter_functions is not None:
             for fun in self.parameter_functions:
                 assert len(fun[1]) == 2
@@ -241,9 +244,10 @@ class ParameterSet:
         for param in parameters:
             self.num_fe += param.num_fe
 
-=======
-        for k, v in consolidate(Parameter, self.parameters).items():
             self.__setattr__(k, v)
+        self.num_fe = 0
+        for param in parameters:
+            self.num_fe += param.num_fe
 
 >>>>>>> updated parameter class
 
@@ -251,13 +255,7 @@ def consolidate(cls, instance_list, exclude=None):
     if exclude is None:
         exclude = []
     consolidated = {}
-<<<<<<< HEAD
     for f in fields(cls):
         if f.name not in exclude:
             consolidated[f.name] = [instance.__getattribute__(f.name) for instance in instance_list]
-=======
-    for field in fields(cls):
-        if field.name not in exclude:
-            consolidated[field.name] = [instance.__getattribute__(field.name) for instance in instance_list]
->>>>>>> updated parameter class
     return consolidated
