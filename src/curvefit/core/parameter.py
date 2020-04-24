@@ -123,12 +123,8 @@ class Parameter:
     param_name: str
     link_fun: Callable
     variables: InitVar[List[Variable]]
-<<<<<<< HEAD
 
     num_fe: int = field(init=False)
-=======
-    num_fe: int = field(init=False)
->>>>>>> updated core model to work with objective_fun
     covariate: List[str] = field(init=False)
     var_link_fun: List[Callable] = field(init=False)
     fe_init: List[float] = field(init=False)
@@ -142,18 +138,13 @@ class Parameter:
         assert isinstance(variables, list)
         assert len(variables) > 0
         assert isinstance(variables[0], Variable)
-<<<<<<< HEAD
         self.num_fe = len(variables)
-=======
-        self.num_fe = len(variables)
->>>>>>> updated core model to work with objective_fun
         for k, v in consolidate(Variable, variables).items():
             self.__setattr__(k, v)
 
 
 @dataclass
 class ParameterSet:
-<<<<<<< HEAD
     """
     {begin_markdown ParameterSet}
 
@@ -210,12 +201,6 @@ class ParameterSet:
 
     param_name: List[str] = field(init=False)
     num_fe: int = field(init=False)
-=======
-    parameters: InitVar[List[Parameter]]
-    parameter_functions: List[Tuple[Callable, List[float]]] = None
-    param_name: List[str] = field(init=False)
-    num_fe: int = field(init=False)
->>>>>>> updated core model to work with objective_fun
     link_fun: List[Callable] = field(init=False)
     covariate: List[List[str]] = field(init=False)
     var_link_fun: List[List[Callable]] = field(init=False)
@@ -226,17 +211,12 @@ class ParameterSet:
     fe_bounds: List[List[List[float]]] = field(init=False)
     re_bounds: List[List[List[float]]] = field(init=False)
 
-<<<<<<< HEAD
     def __post_init__(self, parameters):
-=======
-    def __post_init__(self, parameters):
->>>>>>> updated core model to work with objective_fun
         if self.parameter_functions is not None:
             for fun in self.parameter_functions:
                 assert len(fun[1]) == 2
                 assert isinstance(fun[0], Callable)
 
-<<<<<<< HEAD
         for k, v in consolidate(Parameter, parameters, exclude=['num_fe']).items():
             self.__setattr__(k, v)
 
@@ -244,12 +224,6 @@ class ParameterSet:
         for param in parameters:
             self.num_fe += param.num_fe
 
-            self.__setattr__(k, v)
-        self.num_fe = 0
-        for param in parameters:
-            self.num_fe += param.num_fe
-
->>>>>>> updated parameter class
 
 def consolidate(cls, instance_list, exclude=None):
     if exclude is None:
